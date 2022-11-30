@@ -56,8 +56,8 @@ def process_report_defend(line):
     data = {}
 
     data['No'] = line[0:6].strip()
-    data['File Number'] = line[8:19].strip()
-    data['Defend Name'] = line[20:41].strip()
+    data['FileNumber'] = line[8:19].strip()
+    data['DefendName'] = line[20:41].strip()
     data['Complainant'] = line[42:55].strip()
     data['Attorney'] = line[57:81].strip()
     data['Cont'] = line[82:].strip()
@@ -65,19 +65,18 @@ def process_report_defend(line):
     return data
 
 
-def fingerprintAndBond(line):
-    data = {}
+def fingerprintAndBond(line, defend_data):
 
     if line[19:27] == "********":
-        data['Needs Fingerprinted'] = "Yes"
+        defend_data['Needs Fingerprinted'] = "Yes"
     elif line[20:24] == "BOND":
-        data['Bond'] = line[31:45].strip()
-        data['Needs Fingerprinted'] = "No"
+        defend_data['Bond'] = line[31:45].strip()
+        defend_data['Needs Fingerprinted'] = "No"
     else:
-        data['Bond'] = "WPA"
-        data['Needs Fingerprinted'] = "No"
+        defend_data['Bond'] = "WPA"
+        defend_data['Needs Fingerprinted'] = "No"
 
-    return data
+    return defend_data
 
 
 def is_bond(prevline):
@@ -87,14 +86,13 @@ def is_bond(prevline):
         return False
 
 
-def process_bond(line):
-    data = {}
+def process_bond(line, defend_data):
     if line[20:24] == "BOND":
-        data['Bond'] = line[31:45].strip()
+        defend_data['Bond'] = line[31:45].strip()
     else:
-        data['Bond'] = "WPA"
+        defend_data['Bond'] = "WPA"
 
-    return data
+    return defend_data
 
 
 def is_offence(line):
@@ -120,50 +118,60 @@ def is_secondline_offence(prevline):
         return False
 
 
-def process_secondline_report_offence(line):
-    data = {}
+def process_secondline_report_offence(line, offense_data):
     if line[13] != "":
-        data['CLS'] = line[13].strip()
+        offense_data['CLS'] = line[13].strip()
     else:
-        data['CLS'] = ""
+        offense_data['CLS'] = ""
     if line[18] != "":
-        data['P'] = line[18].strip()
+        offense_data['P'] = line[18].strip()
     else:
-        data['P'] = ""
+        offense_data['P'] = ""
     if line[23] != "":
-        data['L'] = line[23].strip()
+        offense_data['L'] = line[23].strip()
     else:
-        data['L'] = ""
+        offense_data['L'] = ""
     try:
         if line[50] != "":
-            data['Judgement'] = line[50:70].strip()
+            offense_data['Judgement'] = line[50:70].strip()
         else:
-            data['Judgement'] = ""
+            offense_data['Judgement'] = ""
         if line[81] != "":
-            data['ADA'] = line[81:83].strip()
+            offense_data['ADA'] = line[81:83].strip()
         else:
-            data['ADA'] = ""
+            offense_data['ADA'] = ""
     except IndexError:
-        data['Judgement'] = ""
-        data['ADA'] = ""
+        offense_data['Judgement'] = ""
+        offense_data['ADA'] = ""
 
-    return data
+    return offense_data
+
+
+def write_data(writer, rpt_data, defend_data, offense_data):
+    rec = dict(rpt_data)
+    rec.update(defend_data)
+    rec.update(offense_data)
+    writer.writerow(rec)
 
 
 def main():
     # filename = input("plaese enter the filename:")
     filename = "data.txt"
     header = [
-        'Date', 'Time', 'Courtroom', 'No', 'File', 'Number', 'Defendant Name', 'Complainant',	'Attorney', 'Cont', 'Needs Fingerprinted', 'Bond', 'Charge', 'Plea', 'Ver',	'CLS', 'P',	'L', 'Judgement', 'ADA'
+        'RunDate', 'CourtDate', 'CourtTime', 'CourtRoom', 'No', 'FileNumber', 'DefendName', 'Complainant', 'Attorney', 'Cont', 'Needs Fingerprinted', 'Bond', 'Charge', 'Plea', 'Ver', 'CLS', 'P', 'L', 'Judgement', 'ADA'
     ]
 
     newfilename = filename.replace('.txt', '')
-    csvfile = open(f'{newfilename}.csv', 'w')
-    writer = csv.writer(csvfile)
-    writer.writerow(header)
+    csvfile = open(f'{newfilename}.csv', 'w', newline='')
+    writer = csv.DictWriter(csvfile, fieldnames=header)
+    writer.writeheader()
 
     infile = open(filename)
     prevline = ""
+
+    rpt_data = {}
+    defend_data = {}
+    offense_data = {}
 
     while True:
         line = infile.readline()
@@ -177,27 +185,27 @@ def main():
             rpt_data = process_report_header(infile, line)
             print("rpt_data =", rpt_data)
         elif is_defend(line):
-            defence_data = process_report_defend(line)
-            print("defence_data =", defence_data)
+            if len(defend_data) > 0:
+                write_data(writer, rpt_data, defend_data, offense_data)
+                defend_data = {}
+                offense_data = {}
+            defend_data = process_report_defend(line)
         elif is_defend(prevline):
-            fingerprintAndBond_data = fingerprintAndBond(line)
-            print("fingerprintAndBond =", fingerprintAndBond_data)
+            fingerprintAndBond(line, defend_data)
         elif is_bond(prevline):
-            bond_data = process_bond(line)
-            print("bonddata =", bond_data)
+            process_bond(line, defend_data)
         elif is_offence(line):
-            offence_data = process_report_offence(line)
-            print("offence_data =", offence_data)
+            if len(offense_data) > 0:
+                write_data(writer, rpt_data, defend_data, offense_data)
+                offense_data = {}
+            offense_data = process_report_offence(line)
         elif is_secondline_offence(prevline):
-            secondline_offence_data = process_secondline_report_offence(line)
-            print("secondline_offence_data =", secondline_offence_data)
-            print("\n")
+            process_secondline_report_offence(line, offense_data)
         else:
             print(line, end="")
 
         prevline = line
-
-        csvfile.close()
+    csvfile.close()
 
 
 if __name__ == '__main__':
