@@ -66,7 +66,7 @@ def process_report_defend(line):
 
 
 def is_aka(line):
-    if line[14:16] == "AKA":
+    if line[14:17] == "AKA":
         return True
     else:
         return False
@@ -87,7 +87,7 @@ def fingerprintAndBond(line, defend_data):
 
 
 def is_bond(prevline):
-    if prevline[19:27] == "********" or prevline[14:16] == "AKA":
+    if prevline[19:27] == "********" or prevline[14:17] == "AKA":
         return True
     else:
         return False
