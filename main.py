@@ -65,6 +65,13 @@ def process_report_defend(line):
     return data
 
 
+def is_aka(line):
+    if line[14:16] == "AKA":
+        return True
+    else:
+        return False
+
+
 def fingerprintAndBond(line, defend_data):
 
     if line[19:27] == "********":
@@ -80,7 +87,7 @@ def fingerprintAndBond(line, defend_data):
 
 
 def is_bond(prevline):
-    if prevline[19:27] == "********":
+    if prevline[19:27] == "********" or prevline[14:16] == "AKA":
         return True
     else:
         return False
@@ -155,8 +162,8 @@ def write_data(writer, rpt_data, defend_data, offense_data):
 
 
 def main():
-    # filename = input("plaese enter the filename:")
-    filename = "data.txt"
+    filename = input("plaese enter the filename:")
+    # filename = "data.txt"
     header = [
         'RunDate', 'CourtDate', 'CourtTime', 'CourtRoom', 'No', 'FileNumber', 'DefendName', 'Complainant', 'Attorney', 'Cont', 'Needs Fingerprinted', 'Bond', 'Charge', 'Plea', 'Ver', 'CLS', 'P', 'L', 'Judgement', 'ADA'
     ]
@@ -183,7 +190,6 @@ def main():
             process_page_header(infile)
         elif is_report_header(line):
             rpt_data = process_report_header(infile, line)
-            print("rpt_data =", rpt_data)
         elif is_defend(line):
             if len(defend_data) > 0:
                 write_data(writer, rpt_data, defend_data, offense_data)
@@ -191,6 +197,8 @@ def main():
                 offense_data = {}
             defend_data = process_report_defend(line)
         elif is_defend(prevline):
+            fingerprintAndBond(line, defend_data)
+        elif is_aka(prevline):
             fingerprintAndBond(line, defend_data)
         elif is_bond(prevline):
             process_bond(line, defend_data)
